@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "hacking.h": "c",
+        "inet.h": "c"
+    }
+}
