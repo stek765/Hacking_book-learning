@@ -1,6 +1,6 @@
 /*
 SOCKETS:
- A socket is a standard way to communicate over a network, using the OSI model.
+ A socket is a standard way to communicate over a network, using the OSI model. (5th layer, session layer)
  It's abstracted by the operating system, and there can be many different sockets open at the same time.
 
  Our computer ALWAYS RECEIVES DATA, but each packet gets distributed into a specific socket,

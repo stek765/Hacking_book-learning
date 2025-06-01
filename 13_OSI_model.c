@@ -6,7 +6,7 @@ OSI Model - Graphical Representation with Layer Descriptions
     +----------------------+
 6   | Presentation Layer   |  <-- Translates data formats, encrypts/decrypts, compresses data
     +----------------------+
-5   |    Session Layer     |  <-- Manages sessions and controls dialogues between computers
+5   |    Session Layer     |  <-- Manages sessions and controls dialogues between computers (sockets)
     +----------------------+
 4   |   Transport Layer    |  <-- Ensures reliable data transfer with error checking and flow control
     +----------------------+
