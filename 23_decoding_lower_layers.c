@@ -84,18 +84,20 @@ Now, using pcp_loop() with a callback function, we can capture packets and use o
 header structures to decode them.
 */
 
+
 #include <stdio.h>
 #include <pcap.h>
 #include "hacking-network.h"
 #include "hacking.h"
 
+// Size of the Ethernet header in bytes
 #define ETHER_HDR_LEN 14
 
+// Function declarations
 void pcap_fatal(const char *fatal, const char *errbuf);
 void decode_ethernet(const u_char *);
 void decode_ip(const u_char *);
 u_int decode_tcp(const u_char *);
-
 void caught_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 
 int main() {
@@ -103,9 +105,9 @@ int main() {
     const u_char *packet, *pkt_data;
     char errbuf[PCAP_ERRBUF_SIZE];
     char *device;
-
     pcap_t *pcap_handle;
 
+    // Find a suitable network device to sniff on
     device = pcap_lookupdev(errbuf);
     if (device == NULL) {
         pcap_fatal("pcap_lookupdev() failed", errbuf);
@@ -113,29 +115,41 @@ int main() {
 
     printf("Sniffing on device: %s\n", device);
 
+    // Open the device for live capture (snaplen=4096, promiscuous=1, timeout=0)
     pcap_handle = pcap_open_live(device, 4096, 1, 0, errbuf);
     if (pcap_handle == NULL) {
         pcap_fatal("pcap_open_live() failed", errbuf);
     }
 
+    // Capture 3 packets and process them with caught_packet()
     pcap_loop(pcap_handle, 3, caught_packet, NULL);
     
+    // Close the session
     pcap_close(pcap_handle);
 }
 
+// This function is called each time a packet is captured
 void caught_packet(u_char *user_args, const struct pcap_pkthdr *cap_header, const u_char *packet) {
     int tcp_header_length, total_header_size, pkt_data_len;
     const u_char *pkt_data;
 
     printf("=== Got a %d byte packet ===\n", cap_header->len);
+
+    // Process Layer 2: Ethernet header
     decode_ethernet(packet);
+
+    // Process Layer 3: IP header (offset after Ethernet)
     decode_ip(packet + ETHER_HDR_LEN);
+
+    // Process Layer 4: TCP header (offset after Ethernet + IP)
     tcp_header_length = decode_tcp(packet + ETHER_HDR_LEN + sizeof(struct ip_hdr));
 
+    // Calculate where actual data starts
     total_header_size = ETHER_HDR_LEN + sizeof(struct ip_hdr) + tcp_header_length;
     pkt_data = packet + total_header_size;
     pkt_data_len = cap_header->len - total_header_size;
 
+    // Display data size if any
     if(pkt_data_len > 0) {
         printf("\t\t\t%3d bytes of packet data\n", pkt_data_len);
     } else {
@@ -143,11 +157,13 @@ void caught_packet(u_char *user_args, const struct pcap_pkthdr *cap_header, cons
     }
 }
 
+// Handle libpcap fatal error
 void pcap_fatal(const char *failed_in, const char *errbuf) {
     printf("Fatal Error in %s: %s\n", failed_in, errbuf);
     exit(1);
 }
 
+// Print Ethernet (Layer 2) info from the packet
 void decode_ethernet(const u_char *header_start) {
     const struct ether_hdr *ethernet_header;
     ethernet_header = (const struct ether_hdr *)header_start;
@@ -160,15 +176,16 @@ void decode_ethernet(const u_char *header_start) {
     printf("\t\t Type: %hu\n", ethernet_header->ether_type);
 }
 
+// Print IP (Layer 3) info from the packet
 void decode_ip(const u_char *header_start) {
     const struct ip_hdr *ip_header;
     ip_header = (const struct ip_hdr *)header_start;
 
+    // Convert binary IPs to strings
     char src_str[INET_ADDRSTRLEN];
     char dest_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &ip_header->ip_src_addr, src_str, INET_ADDRSTRLEN);
     inet_ntop(AF_INET, &ip_header->ip_dest_addr, dest_str, INET_ADDRSTRLEN);
-
 
     printf("\t Layer 3: IP Header\n");
     printf("\t\t Source: %s\n", src_str);
@@ -177,9 +194,12 @@ void decode_ip(const u_char *header_start) {
     printf("\t\t Length: %hu\n", ntohs(ip_header->ip_len));
 }
 
+// Print TCP (Layer 4) info from the packet
 u_int decode_tcp(const u_char *header_start) {
     const struct tcp_hdr *tcp_header;
     tcp_header = (const struct tcp_hdr *)header_start;
+
+    // TCP offset field tells us the header size in 32-bit words
     int header_size = 4 * tcp_header->tcp_offset;
 
     printf("\t Layer 4: TCP Header\n");
@@ -190,12 +210,13 @@ u_int decode_tcp(const u_char *header_start) {
     printf("\t\t Header size: %d\n", header_size);
     printf("\t\t Flags: ");
 
-    if(tcp_header->tcp_flags & TCP_FIN) printf("FIN ");
-    if(tcp_header->tcp_flags & TCP_SYN) printf("SYN ");
-    if(tcp_header->tcp_flags & TCP_RST) printf("RST ");
-    if(tcp_header->tcp_flags & TCP_PUSH) printf("PUSH ");
-    if(tcp_header->tcp_flags & TCP_ACK) printf("ACK ");
-    if(tcp_header->tcp_flags & TCP_URG) printf("URG ");
+    // Print any TCP control flags that are set
+    if(tcp_header->tcp_flags & TCP_FIN)   printf("FIN ");
+    if(tcp_header->tcp_flags & TCP_SYN)   printf("SYN ");
+    if(tcp_header->tcp_flags & TCP_RST)   printf("RST ");
+    if(tcp_header->tcp_flags & TCP_PUSH)  printf("PUSH ");
+    if(tcp_header->tcp_flags & TCP_ACK)   printf("ACK ");
+    if(tcp_header->tcp_flags & TCP_URG)   printf("URG ");
 
     printf("\n");
 
